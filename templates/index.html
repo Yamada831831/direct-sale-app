@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+
+{% block title %}出品入力{% endblock %}
+
+{% block content %}
+<h2>無人直売所 出品入力</h2>
+
+<form id="sales-form" autocomplete="off">
+    <label>商品名</label>
+    <input type="text" name="product_name" id="product-input" required>
+    <div class="suggest-box" id="product-suggest"></div>
+
+    <label>規格</label>
+    <input type="text" name="standard_name" id="standard-input" required>
+    <div class="suggest-box" id="standard-suggest"></div>
+
+    <label>金額（円）</label>
+    <input type="number" name="price_amount" id="price-input" required>
+    <div class="suggest-box" id="price-suggest"></div>
+
+    <label>数量</label>
+    <input type="number" name="quantity" min="1" required>
+
+    <button type="submit">登録する</button>
+</form>
+
+<p id="result-msg" style="color: green;"></p>
+
+<style>
+    .suggest-box {
+        background: #f0f0f0;
+        border: 1px solid #ccc;
+        max-height: 150px;
+        overflow-y: auto;
+        position: relative;
+        z-index: 10;
+    }
+    .suggest-box div {
+        padding: 5px;
+        cursor: pointer;
+    }
+    .suggest-box div:hover {
+        background-color: #ddd;
+    }
+</style>
+
+<script>
+    const form = document.getElementById('sales-form');
+    const resultMsg = document.getElementById('result-msg');
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const data = {
+            product_name: form.product_name.value,
+            standard_name: form.standard_name.value,
+            price_amount: form.price_amount.value,
+            quantity: form.quantity.value
+        };
+
+        const res = await fetch('/api/sales/add_or_update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+
+        const result = await res.json();
+        resultMsg.textContent = result.message;
+        resultMsg.style.color = 'green';
+        form.reset();
+    });
+
+    // ----- サジェスト機能 -----
+    const suggestInputs = [
+        { id: 'product', url: '/api/suggest/product' },
+        { id: 'standard', url: '/api/suggest/standard' },
+        { id: 'price', url: '/api/suggest/price' }
+    ];
+
+    suggestInputs.forEach(item => {
+        const input = document.getElementById(`${item.id}-input`);
+        const box = document.getElementById(`${item.id}-suggest`);
+
+        input.addEventListener('input', async () => {
+            const res = await fetch(item.url);
+            const suggestions = await res.json();
+            const keyword = input.value.toLowerCase();
+
+            box.innerHTML = '';
+            if (!keyword) return;
+
+            const filtered = suggestions.filter(s => s.toLowerCase().includes(keyword));
+            filtered.forEach(s => {
+                const div = document.createElement('div');
+                div.textContent = s;
+                div.addEventListener('click', () => {
+                    input.value = s;
+                    box.innerHTML = '';
+                });
+                box.appendChild(div);
+            });
+        });
+
+        // フォーカス外れたら閉じる
+        input.addEventListener('blur', () => {
+            setTimeout(() => box.innerHTML = '', 200);
+        });
+    });
+</script>
+{% endblock %}

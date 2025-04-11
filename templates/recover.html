@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+
+{% block title %}回収入力{% endblock %}
+
+{% block content %}
+<h2>📦 本日の出品一覧（回収入力）</h2>
+
+<form id="recover-form">
+    <div id="sales-list" style="display: flex; flex-wrap: wrap; gap: 1rem;"></div>
+    <button type="submit" style="margin-top: 1rem;">💾 回収数を保存する</button>
+</form>
+
+<p id="result-msg" style="color: green;"></p>
+
+<style>
+    .card {
+        background: #f9f9f9;
+        border: 1px solid #ccc;
+        border-radius: 1rem;
+        padding: 1rem;
+        width: 300px;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+    }
+    .card h3 {
+        margin-top: 0;
+        font-size: 1.2rem;
+    }
+    .card label {
+        font-weight: bold;
+    }
+    input[type="number"] {
+        width: 100%;
+        padding: 0.3rem;
+        margin-top: 0.3rem;
+        font-size: 1rem;
+    }
+</style>
+
+<script>
+    const salesList = document.getElementById('sales-list');
+    const form = document.getElementById('recover-form');
+    const resultMsg = document.getElementById('result-msg');
+
+    async function loadTodaySales() {
+        const res = await fetch('/api/sales/today');
+        const sales = await res.json();
+
+        if (sales.length === 0) {
+            salesList.innerHTML = "<p>本日の出品はまだありません。</p>";
+            return;
+        }
+
+        let html = "";
+        sales.forEach((row, i) => {
+            html += `
+                <div class="card">
+                    <h3>${row.product_name}</h3>
+                    <p>規格：${row.standard_name}</p>
+                    <p>金額：<strong>¥${row.price_amount}</strong></p>
+                    <p>出品数：${row.quantity}</p>
+                    <label>回収数：</label>
+                    <input type="number" name="recovered_${i}" min="0" value="${row.recovered_qty || ''}" required>
+                    <input type="hidden" name="datetime_${i}" value="${row.datetime}">
+                </div>
+            `;
+        });
+
+        html += `<input type="hidden" name="count" value="${sales.length}">`;
+        salesList.innerHTML = html;
+    }
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const count = parseInt(form.count.value);
+        const data = [];
+
+        for (let i = 0; i < count; i++) {
+            data.push({
+                datetime: form[`datetime_${i}`].value,
+                recovered_qty: parseInt(form[`recovered_${i}`].value)
+            });
+        }
+
+        const res = await fetch('/api/sales/recover', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+
+        const result = await res.json();
+        resultMsg.textContent = result.message;
+        resultMsg.style.color = 'green';
+    });
+
+    loadTodaySales();
+</script>
+{% endblock %}

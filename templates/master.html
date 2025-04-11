@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+
+{% block title %}マスタ管理{% endblock %}
+
+{% block content %}
+<h2>📦 規格マスタ管理</h2>
+
+<form id="standard-form">
+    <label>規格名：</label>
+    <input type="text" name="name" required>
+    <label>使用量（例：0.2）</label>
+    <input type="number" name="usage_ratio" step="0.01" required>
+    <button type="submit">追加</button>
+</form>
+
+<ul id="standard-list"></ul>
+
+<hr>
+
+<h2>💰 原価マスタ管理</h2>
+
+<form id="cost-form">
+    <label>商品名：</label>
+    <input type="text" name="product_name" required>
+    <label>週開始日（月曜）</label>
+    <input type="date" name="week_start" required>
+    <label>1kgまたは1pkあたりの原価（円）</label>
+    <input type="number" name="cost_per_unit" step="0.01" required>
+    <button type="submit">追加 / 上書き</button>
+</form>
+
+<ul id="cost-list"></ul>
+
+<script>
+    const standardForm = document.getElementById('standard-form');
+    const standardList = document.getElementById('standard-list');
+
+    const costForm = document.getElementById('cost-form');
+    const costList = document.getElementById('cost-list');
+
+    // ---------------------
+    // 規格マスタの処理
+    // ---------------------
+    async function loadStandards() {
+        const res = await fetch('/api/master/standards');
+        const data = await res.json();
+        standardList.innerHTML = '';
+        data.forEach(item => {
+            const li = document.createElement('li');
+            li.textContent = `${item.name}（使用量：${item.usage_ratio}） `;
+            const delBtn = document.createElement('button');
+            delBtn.textContent = '削除';
+            delBtn.onclick = async () => {
+                await fetch(`/api/master/standards?name=${encodeURIComponent(item.name)}`, { method: 'DELETE' });
+                loadStandards();
+            };
+            li.appendChild(delBtn);
+            standardList.appendChild(li);
+        });
+    }
+
+    standardForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(standardForm);
+        await fetch('/api/master/standards', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: formData.get('name'),
+                usage_ratio: formData.get('usage_ratio')
+            })
+        });
+        standardForm.reset();
+        loadStandards();
+    });
+
+    // ---------------------
+    // 原価マスタの処理
+    // ---------------------
+    async function loadCosts() {
+        const res = await fetch('/api/master/costs');
+        const data = await res.json();
+        costList.innerHTML = '';
+        data.forEach(item => {
+            const li = document.createElement('li');
+            li.textContent = `${item.product_name} / ${item.week_start}：￥${item.cost_per_unit} `;
+            const delBtn = document.createElement('button');
+            delBtn.textContent = '削除';
+            delBtn.onclick = async () => {
+                await fetch(`/api/master/costs?product_name=${encodeURIComponent(item.product_name)}&week_start=${item.week_start}`, {
+                    method: 'DELETE'
+                });
+                loadCosts();
+            };
+            li.appendChild(delBtn);
+            costList.appendChild(li);
+        });
+    }
+
+    costForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(costForm);
+        await fetch('/api/master/costs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                product_name: formData.get('product_name'),
+                week_start: formData.get('week_start'),
+                cost_per_unit: formData.get('cost_per_unit')
+            })
+        });
+        costForm.reset();
+        loadCosts();
+    });
+
+    loadStandards();
+    loadCosts();
+</script>
+{% endblock %}

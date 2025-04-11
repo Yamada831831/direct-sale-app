@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+
+{% block title %}集計画面{% endblock %}
+
+{% block content %}
+<h2>売上集計</h2>
+
+<form method="GET" action="/export/summary_csv">
+    <button type="submit">CSVダウンロード</button>
+</form>
+
+
+<!-- 単日集計フォーム -->
+<form id="summary-form">
+    <label>集計日を選択：</label>
+    <input type="date" id="summary-date" required>
+    <button type="submit">単日集計</button>
+</form>
+
+<hr>
+
+<!-- 期間集計フォーム -->
+<form id="range-form">
+    <label>開始日：</label>
+    <input type="date" id="from-date" required>
+    <label>終了日：</label>
+    <input type="date" id="to-date" required>
+    <button type="submit">期間集計</button>
+</form>
+
+<hr>
+
+<div id="summary-result">
+    <p>日付を選択して集計ボタンを押してください。</p>
+</div>
+
+<script>
+    const summaryForm = document.getElementById('summary-form');
+    const rangeForm = document.getElementById('range-form');
+    const resultDiv = document.getElementById('summary-result');
+
+    summaryForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const date = document.getElementById('summary-date').value;
+        if (!date) return;
+        const res = await fetch(`/api/sales/summary?date=${date}`);
+        const data = await res.json();
+        renderTable(data);
+    });
+
+    rangeForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const from = document.getElementById('from-date').value;
+        const to = document.getElementById('to-date').value;
+        if (!from || !to) return;
+        const res = await fetch(`/api/sales/summary_range?from=${from}&to=${to}`);
+        const data = await res.json();
+        renderTable(data);
+    });
+
+    function renderTable(data) {
+        if (data.length === 0) {
+            resultDiv.innerHTML = `<p>対象期間にデータがありません。</p>`;
+            return;
+        }
+
+        let html = `
+        <table border="1" cellpadding="5" cellspacing="0">
+            <thead>
+                <tr>
+                    <th>商品</th>
+                    <th>規格</th>
+                    <th>金額</th>
+                    <th>出品数</th>
+                    <th>回収数</th>
+                    <th>販売数</th>
+                    <th>売上</th>
+                    <th>原価</th>
+                    <th>原価率</th>
+                    <th>利益</th>
+                </tr>
+            </thead>
+            <tbody>
+        `;
+
+        let total_revenue = 0;
+        let total_cost = 0;
+        let total_profit = 0;
+
+        data.forEach(row => {
+            total_revenue += row.revenue;
+            total_cost += row.cost;
+            total_profit += row.profit;
+
+            html += `
+                <tr>
+                    <td>${row.product_name}</td>
+                    <td>${row.standard_name}</td>
+                    <td>￥${row.price}</td>
+                    <td>${row.quantity}</td>
+                    <td>${row.recovered}</td>
+                    <td>${row.sold}</td>
+                    <td>￥${row.revenue}</td>
+                    <td>￥${row.cost.toFixed(2)}</td>
+                    <td>${(row.cost_rate * 100).toFixed(1)}%</td>
+                    <td>￥${row.profit.toFixed(2)}</td>
+                </tr>
+            `;
+        });
+
+        html += `
+            </tbody>
+            <tfoot>
+                <tr style="font-weight:bold;">
+                    <td colspan="6">合計</td>
+                    <td>￥${total_revenue}</td>
+                    <td>￥${total_cost.toFixed(2)}</td>
+                    <td></td>
+                    <td>￥${total_profit.toFixed(2)}</td>
+                </tr>
+            </tfoot>
+        </table>
+        `;
+
+        resultDiv.innerHTML = html;
+    }
+</script>
+{% endblock %}

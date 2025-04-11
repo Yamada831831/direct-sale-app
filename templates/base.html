@@ -1,0 +1,36 @@
+<!-- templates/base.html -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}無人直売所{% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: sans-serif; padding: 1em; }
+        nav a {
+            margin-right: 10px;
+            text-decoration: none;
+            font-weight: bold;
+            color: #333;
+        }
+        input, button {
+            width: 100%;
+            padding: 0.5em;
+            margin: 0.5em 0;
+            font-size: 1.1em;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="/">出品</a>
+        <a href="/recover">回収</a>
+        <a href="/summary">集計</a>
+        <a href="/master">マスタ管理</a>
+    </nav>
+
+    <hr>
+
+    {% block content %}{% endblock %}
+</body>
+</html>
