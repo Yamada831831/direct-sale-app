@@ -49,6 +49,10 @@ def recover():
 def summary():
     return render_template('summary.html')
 
+@app.route('/ping')
+def ping():
+    return 'pong'
+
 @app.route('/api/sales/today', methods=['GET'])
 def get_today_sales():
     today = datetime.now().strftime('%Y-%m-%d')
