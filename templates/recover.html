@@ -3,24 +3,28 @@
 {% block title %}回収入力{% endblock %}
 
 {% block content %}
-<h2>📦 本日の出品一覧（回収入力）</h2>
+<h2>📦 本日の出品一覧（回収入力・編集・削除）</h2>
 
 <form id="recover-form">
     <div id="sales-list" style="display: flex; flex-wrap: wrap; gap: 1rem;"></div>
-    <button type="submit" style="margin-top: 1rem;">💾 回収数を保存する</button>
+    <button type="submit" style="margin-top: 1rem;">💾 変更を保存する</button>
 </form>
 
 <p id="result-msg" style="color: green;"></p>
 
 <style>
-    .card {
-        background: #f9f9f9;
-        border: 1px solid #ccc;
-        border-radius: 1rem;
-        padding: 1rem;
-        width: 300px;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
-    }
+   .card {
+  position: relative;
+  padding: 16px;
+  border: 1px solid #ccc;
+  border-radius: 12px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  width: 300px;
+  background: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
     .card h3 {
         margin-top: 0;
         font-size: 1.2rem;
@@ -34,6 +38,27 @@
         margin-top: 0.3rem;
         font-size: 1rem;
     }
+    .delete-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: transparent;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    color: #555;
+    padding: 2px 6px;
+  }
+    .delete-btn:hover {
+    color: #d00;
+  }
+/* カードコンテナの設定（親側） */
+#sales-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: flex-start;
+}
 </style>
 
 <script>
@@ -53,13 +78,15 @@
         let html = "";
         sales.forEach((row, i) => {
             html += `
-                <div class="card">
+                <div class="card" data-index="${i}" data-datetime="${row.datetime}">
+                    <button type="button" class="delete-btn" onclick="deleteSale(${i})">✕</button>
                     <h3>${row.product_name}</h3>
                     <p>規格：${row.standard_name}</p>
                     <p>金額：<strong>¥${row.price_amount}</strong></p>
-                    <p>出品数：${row.quantity}</p>
+                    <label>出品数：</label>
+                    <input type="number" name="quantity_${i}" min="0" value="${row.quantity}" required>
                     <label>回収数：</label>
-                    <input type="number" name="recovered_${i}" min="0" value="${row.recovered_qty || ''}" required>
+                    <input type="number" name="recovered_${i}" min="0" value="${row.recovered_qty || 0}" required>
                     <input type="hidden" name="datetime_${i}" value="${row.datetime}">
                 </div>
             `;
@@ -76,13 +103,16 @@
         const data = [];
 
         for (let i = 0; i < count; i++) {
+            const datetime = form[`datetime_${i}`]?.value;
+            if (!datetime) continue;
             data.push({
-                datetime: form[`datetime_${i}`].value,
+                datetime: datetime,
+                quantity: parseInt(form[`quantity_${i}`].value),
                 recovered_qty: parseInt(form[`recovered_${i}`].value)
             });
         }
 
-        const res = await fetch('/api/sales/recover', {
+        const res = await fetch('/api/sales/update', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
@@ -92,6 +122,23 @@
         resultMsg.textContent = result.message;
         resultMsg.style.color = 'green';
     });
+
+    async function deleteSale(index) {
+        const card = document.querySelector(`.card[data-index='${index}']`);
+        const datetime = card.getAttribute('data-datetime');
+        if (!confirm('この出品を削除してもよろしいですか？')) return;
+
+        const res = await fetch('/api/sales/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ datetime })
+        });
+
+        const result = await res.json();
+        resultMsg.textContent = result.message;
+        resultMsg.style.color = 'red';
+        card.remove();
+    }
 
     loadTodaySales();
 </script>

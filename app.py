@@ -58,7 +58,7 @@ def get_today_sales():
     today = datetime.now().strftime('%Y-%m-%d')
     result = []
 
-    with open(SALES_FILE, 'r', newline='', encoding='utf-8') as f:
+    with open(SALES_FILE, 'r', newline='', encoding='utf-8-sig') as f:
         reader = csv.DictReader(f)
         for row in reader:
             if row['datetime'].startswith(today):
@@ -81,7 +81,7 @@ def summary_sales():
     summary_list = []
 
     # 各CSV読み込み
-    with open(SALES_FILE, 'r', encoding='utf-8') as f:
+    with open(SALES_FILE, 'r', encoding='utf-8-sig') as f:
         sales_data = [row for row in csv.DictReader(f) if row['datetime'].startswith(query_date)]
 
     with open('data/standards.csv', 'r', encoding='utf-8-sig') as f:
@@ -196,7 +196,7 @@ def summary_sales_range():
         return start.strftime('%Y-%m-%d')
 
     # データ読み込み
-    with open(SALES_FILE, 'r', encoding='utf-8') as f:
+    with open(SALES_FILE, 'r', encoding='utf-8-sig') as f:
         sales_data = [
             row for row in csv.DictReader(f)
             if from_date <= row['datetime'][:10] <= to_date
@@ -424,6 +424,55 @@ def update_recovery():
 
     return jsonify({'status': 'ok', 'message': '回収数を保存しました'}), 200
 
+@app.route('/api/sales/update', methods=['POST'])
+def update_sales():
+    path = 'data/sales.csv'
+    try:
+        updates = request.get_json()
+        with open(path, 'r', encoding='utf-8-sig') as f:
+            reader = list(csv.DictReader(f))
+
+        updated = 0
+        for u in updates:
+            for row in reader:
+                if row['datetime'] == u['datetime']:
+                    row['quantity'] = str(u['quantity'])
+                    row['recovered_qty'] = str(u['recovered_qty'])
+                    updated += 1
+                    break
+
+        with open(path, 'w', encoding='utf-8-sig', newline='') as f:
+            writer = csv.DictWriter(f, fieldnames=reader[0].keys())
+            writer.writeheader()
+            writer.writerows(reader)
+
+        return jsonify({'message': f'{updated}件更新しました'})
+    except Exception as e:
+        return jsonify({'error': '更新エラー', 'detail': str(e)}), 500
+
+@app.route('/api/sales/delete', methods=['POST'])
+def delete_sale():
+    path = 'data/sales.csv'
+    try:
+        target = request.get_json()
+        target_dt = target['datetime']
+
+        with open(path, 'r', encoding='utf-8-sig') as f:
+            reader = list(csv.DictReader(f))
+
+        new_rows = [row for row in reader if row['datetime'] != target_dt]
+
+        with open(path, 'w', encoding='utf-8-sig', newline='') as f:
+            writer = csv.DictWriter(f, fieldnames=reader[0].keys())
+            writer.writeheader()
+            writer.writerows(new_rows)
+
+        return jsonify({'message': '出品データを削除しました'})
+    except Exception as e:
+        return jsonify({'error': '削除エラー', 'detail': str(e)}), 500
+
+
+
 
 @app.route('/api/sales/add_or_update', methods=['POST'])
 def add_or_update_sale():
@@ -441,20 +490,23 @@ def add_or_update_sale():
     updated = False
     rows = []
 
-    # 既存データ読み込み
-    with open(SALES_FILE, 'r', newline='', encoding='utf-8') as f:
+    with open(SALES_FILE, 'r', newline='', encoding='utf-8-sig') as f:
         reader = csv.DictReader(f)
         for row in reader:
-            # 同じ日＋商品＋規格＋金額なら加算
             if (
                 row['datetime'][:10] == today_str and
                 row['product_name'] == product and
                 row['standard_name'] == standard and
                 int(row['price_amount']) == price
             ):
-                row['quantity'] = str(int(row['quantity']) + quantity)
+                try:
+                    row['quantity'] = str(int(row['quantity']) + quantity)
+                except Exception as e:
+                    print('数量加算エラー:', e)
                 updated = True
             rows.append(row)
+
+
 
     # 新規追加
     if not updated:
@@ -468,7 +520,7 @@ def add_or_update_sale():
         })
 
     # 書き込み
-    with open(SALES_FILE, 'w', newline='', encoding='utf-8') as f:
+    with open(SALES_FILE, 'w', newline='', encoding='utf-8-sig') as f:
         writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
         writer.writeheader()
         writer.writerows(rows)
